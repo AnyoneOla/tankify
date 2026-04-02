@@ -24,7 +24,12 @@ body, html {
     overflow: hidden;
     background-color: var(--bg-base);
     color: var(--text-main);
-    touch-action: none; /* Prevent scroll/zoom on mobile */
+    touch-action: none; 
+    font-size: 16px; /* Base for rem */
+}
+
+@media (max-width: 480px) {
+    body, html { font-size: 14px; }
 }
 
 #app {
@@ -39,10 +44,12 @@ body, html {
 @media (min-aspect-ratio: 3/4) {
     #app {
         aspect-ratio: 9 / 16;
-        height: 100vh;
+        height: 95vh;
+        max-height: 900px;
         width: auto;
-        border-left: 1px solid var(--glass-border);
-        border-right: 1px solid var(--glass-border);
+        margin: auto;
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
         box-shadow: 0 0 50px rgba(0,0,0,0.8);
     }
 }
@@ -212,10 +219,12 @@ body, html {
 #draft-p2-panel span { color: var(--secondary); text-shadow: 0 0 10px var(--secondary-glow); }
 
 .draft-grid-container {
-    flex-grow: 1;
+    flex: 1 1 0; /* Flexible height */
+    min-height: 150px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+    overflow: hidden;
 }
 
 .draft-grid-container h3 {
@@ -241,9 +250,15 @@ body, html {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 10px 5px;
+    padding: 8px 4px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-width: 480px) {
+    .weapon-card { padding: 5px 2px; }
+    .w-icon { font-size: 1.8rem !important; margin-bottom: 4px !important; }
+    .w-name { font-size: 0.6rem !important; }
 }
 
 .weapon-card:hover {
@@ -294,8 +309,14 @@ body, html {
 .draft-inventories {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    padding-top: 10px;
+    gap: 10px;
+    padding-top: 5px;
+    flex-shrink: 0;
+}
+
+@media (max-height: 700px) {
+    .draft-inventories { gap: 5px; }
+    .inventory { min-height: 40px !important; padding: 5px !important; }
 }
 
 .inv-container {
@@ -398,12 +419,20 @@ body, html {
 .bottom-dash {
     pointer-events: auto;
     width: 100%;
-    padding: 15px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     background: var(--bg-base);
     border-top: 1px solid var(--glass-border);
+}
+
+@media (max-width: 480px), (max-height: 750px) {
+    .bottom-dash { padding: 8px; gap: 5px; }
+    .top-dash { margin: 8px !important; }
+    .player-hud { width: 40%; }
+    .health-track { height: 8px; }
+    .hud-name { font-size: 0.9rem; }
 }
 
 .weapon-carousel {
@@ -470,6 +499,7 @@ body, html {
 /* Neu-Slider */
 .neu-slider {
     -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     height: 8px;
     background: rgba(255,255,255,0.1);
@@ -479,8 +509,9 @@ body, html {
 
 .neu-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 24px;
-    height: 24px;
+    appearance: none;
+    width: 25px;
+    height: 25px;
     background: #fff;
     border-radius: 50%;
     cursor: pointer;
