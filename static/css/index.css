@@ -1,0 +1,555 @@
+:root {
+    --primary: #00e5ff;
+    --primary-glow: rgba(0, 229, 255, 0.6);
+    --secondary: #ff007f;
+    --secondary-glow: rgba(255, 0, 127, 0.6);
+    --bg-base: #0a0a12;
+    --glass-bg: rgba(15, 15, 25, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --glass-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+    --text-main: #ffffff;
+    --text-muted: #a0a0b8;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Outfit', sans-serif;
+}
+
+body, html {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    touch-action: none; /* Prevent scroll/zoom on mobile */
+}
+
+#app {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Force mobile aspect ratio on wide screens to prevent UI overlap and huge landscape letterboxing */
+@media (min-aspect-ratio: 3/4) {
+    #app {
+        aspect-ratio: 9 / 16;
+        height: 100vh;
+        width: auto;
+        border-left: 1px solid var(--glass-border);
+        border-right: 1px solid var(--glass-border);
+        box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    }
+}
+
+#canvas-container {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.view {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none; /* Let touches pass through to canvas where needed */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease;
+}
+
+.view.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* Glassmorphism Framework */
+.glass-panel, .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+}
+
+.glass-card {
+    border-radius: 24px;
+    padding: 40px 30px;
+}
+
+.glass-panel {
+    border-radius: 16px;
+    padding: 15px;
+}
+
+.glow-text {
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--primary), #ffffff, var(--secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 20px rgba(255,255,255,0.2);
+}
+
+/* Base Buttons */
+.neu-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 15px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #fff;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.neu-btn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.neu-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(100%);
+}
+
+.neu-btn.primary {
+    background: linear-gradient(135deg, var(--primary), #007bb5);
+    box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.neu-btn.danger {
+    background: linear-gradient(135deg, var(--secondary), #a00050);
+    box-shadow: 0 4px 15px var(--secondary-glow);
+}
+
+
+/* --- VIEW: LOGIN --- */
+#view-login {
+    justify-content: center;
+    align-items: center;
+}
+
+#view-login .glass-card {
+    width: 90%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+}
+
+#view-login h1 {
+    font-size: 3rem;
+    line-height: 1.1;
+    margin-bottom: 10px;
+}
+
+#player-name-input {
+    background: rgba(0,0,0,0.3);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 15px;
+    color: white;
+    font-size: 1.2rem;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+#player-name-input:focus {
+    border-color: var(--primary);
+}
+
+
+/* --- VIEW: DRAFT --- */
+#view-draft {
+    padding: 20px;
+    gap: 20px;
+    justify-content: flex-start;
+}
+
+.draft-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.draft-player {
+    display: flex;
+    flex-direction: column;
+}
+
+.draft-player span { font-weight: 700; font-size: 1.2rem; }
+.draft-player .draft-count { font-size: 0.9rem; color: var(--text-muted); }
+
+.draft-player.right { text-align: right; }
+
+#draft-p1-panel span { color: var(--primary); text-shadow: 0 0 10px var(--primary-glow); }
+#draft-p2-panel span { color: var(--secondary); text-shadow: 0 0 10px var(--secondary-glow); }
+
+.draft-grid-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.draft-grid-container h3 {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 1rem;
+    letter-spacing: 2px;
+}
+
+.weapon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 10px;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.weapon-card {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 5px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.weapon-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+}
+
+.weapon-card.picked-p1 {
+    border-color: var(--primary);
+    background: rgba(0, 229, 255, 0.1);
+    box-shadow: inset 0 0 10px var(--primary-glow);
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.weapon-card.picked-p2 {
+    border-color: var(--secondary);
+    background: rgba(255, 0, 127, 0.1);
+    box-shadow: inset 0 0 10px var(--secondary-glow);
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.w-icon { 
+    font-size: 2.2rem; 
+    margin-bottom: 8px; 
+    transition: transform 0.3s ease;
+}
+.weapon-card:hover .w-icon {
+    transform: scale(1.15);
+}
+.w-name { 
+    font-size: 0.75rem; 
+    font-weight: 600;
+    text-transform: uppercase;
+    text-align: center; 
+    letter-spacing: 0.5px;
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    width: 100%;
+}
+
+
+/* Draft Inventories */
+.draft-inventories {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding-top: 10px;
+}
+
+.inv-container {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.inv-label {
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    text-shadow: 0 0 10px currentColor;
+}
+.inv-label.right { text-align: right; }
+
+.inventory {
+    min-height: 50px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 10px;
+}
+.inventory.p1-border { border-color: rgba(0, 229, 255, 0.4); box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.1); }
+.inventory.p2-border { border-color: rgba(255, 0, 127, 0.4); box-shadow: inset 0 0 15px rgba(255, 0, 127, 0.1); }
+
+.inv-item {
+    background: rgba(0,0,0,0.5);
+    padding: 5px;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* --- VIEW: GAME --- */
+#view-game {
+    pointer-events: none; /* only hud panels should catch clicks */
+    display: flex;
+    flex-direction: column;
+}
+
+/* TOP HUD */
+.top-dash {
+    pointer-events: auto;
+    margin: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.player-hud {
+    width: 35%;
+}
+
+.hud-name {
+    font-weight: 800;
+    font-size: 1.1rem;
+    margin-bottom: 2px;
+    letter-spacing: 1px;
+}
+
+.hud-score {
+    font-size: 0.65rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: 0.5px;
+    opacity: 0.85;
+}
+
+.p1-hud .hud-name { color: var(--primary); }
+.p2-hud .hud-name { color: var(--secondary); }
+
+.health-track {
+    height: 10px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.health-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.health-fill.p1-fill { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+.health-fill.p2-fill { background: var(--secondary); box-shadow: 0 0 10px var(--secondary); float: right;}
+
+#game-status-banner {
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px white;
+    white-space: nowrap;
+    text-align: center;
+}
+
+
+/* BOTTOM HUD */
+.bottom-dash {
+    pointer-events: auto;
+    width: 100%;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--bg-base);
+    border-top: 1px solid var(--glass-border);
+}
+
+.weapon-carousel {
+    display: flex;
+    overflow-x: auto;
+    gap: 10px;
+    padding-bottom: 10px;
+    scrollbar-width: thin;
+}
+
+.weapon-carousel::-webkit-scrollbar { height: 4px; }
+.weapon-carousel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+.carousel-item {
+    flex-shrink: 0;
+    width: 70px;
+    padding: 10px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.carousel-item.selected {
+    border-color: #fff;
+    background: rgba(255,255,255,0.1);
+    transform: scale(1.05);
+}
+
+.controls-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px 10px;
+}
+
+.action-row {
+    grid-column: span 2;
+    display: flex;
+    gap: 10px;
+}
+
+.slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.slider-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.value-text {
+    font-weight: 700;
+    color: #fff;
+}
+
+/* Neu-Slider */
+.neu-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    outline: none;
+}
+
+.neu-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(255,255,255,0.5);
+    transition: transform 0.1s;
+}
+
+.neu-slider:active::-webkit-slider-thumb {
+    transform: scale(1.2);
+}
+
+/* View Game Triggers for specific turn colors */
+.view-game-p1 .neu-slider::-webkit-slider-thumb { background: var(--primary); box-shadow: 0 0 15px var(--primary-glow); }
+.view-game-p2 .neu-slider::-webkit-slider-thumb { background: var(--secondary); box-shadow: 0 0 15px var(--secondary-glow); }
+
+#fire-btn {
+    flex: 1;
+    height: 50px;
+    font-size: 1.5rem;
+}
+
+.move-btn {
+    flex: 0 0 60px;
+    height: 50px;
+    font-size: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    line-height: 1;
+}
+
+.mbtn-icon {
+    font-weight: 900;
+}
+
+.mbtn-txt {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* Game Over Screen */
+#game-over-screen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1000;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#game-over-screen .glass-card {
+    text-align: center;
+    animation: pulseGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulseGlow {
+    from { box-shadow: 0 0 30px rgba(0,229,255,0.3); }
+    to { box-shadow: 0 0 60px rgba(255,0,127,0.5); }
+}

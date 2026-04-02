@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TANK WARS – Pocket Artillery</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0a12;
+    --panel:    #12121e;
+    --border:   #2a2a4a;
+    --accent1:  #ff4757;
+    --accent2:  #3dc6ff;
+    --p1col:    #ff6b35;
+    --p2col:    #3dc6ff;
+    --gold:     #ffd700;
+    --green:    #2ecc71;
+    --text:     #e0e0f0;
+    --dim:      #6677aa;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── SCANLINE OVERLAY ── */
+  body::after {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.07) 2px, rgba(0,0,0,.07) 4px);
+    pointer-events:none; z-index:999;
+  }
+
+  /* ── TITLE SCREEN ── */
+  #title-screen {
+    position:fixed; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a12 70%);
+    z-index:100;
+  }
+  .title-logo {
+    font-family:'Press Start 2P', monospace;
+    font-size:clamp(18px,3.5vw,42px);
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(255,215,0,.6), 0 0 60px rgba(255,100,0,.3);
+    letter-spacing:4px;
+    animation: titlePulse 2s ease-in-out infinite;
+    margin-bottom:8px;
+    text-align:center;
+  }
+  .title-sub {
+    font-family:'Orbitron',sans-serif;
+    font-size:clamp(8px,1.2vw,13px);
+    color: var(--dim);
+    letter-spacing:6px;
+    margin-bottom:48px;
+  }
+  @keyframes titlePulse {
+    0%,100% { text-shadow: 0 0 20px rgba(255,215,0,.5); }
+    50% { text-shadow: 0 0 40px rgba(255,215,0,.9), 0 0 80px rgba(255,120,0,.5); }
+  }
+  .ws-input-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .ws-input {
+    background: #1e1e30; border:1px solid var(--border);
+    color:var(--text); font-family:'Share Tech Mono',monospace;
+    font-size:13px; padding:10px 16px; border-radius:4px;
+    outline:none; width:260px;
+  }
+  .ws-input:focus { border-color:var(--accent2); }
+  .btn {
+    font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700;
+    padding:11px 28px; border:none; border-radius:4px; cursor:pointer;
+    letter-spacing:2px; text-transform:uppercase; transition:all .15s;
+  }
+  .btn-primary { background:var(--accent1); color:#fff; }
+  .btn-primary:hover { background:#ff6b7a; transform:translateY(-1px); }
+  .btn-secondary { background:var(--accent2); color:#000; }
+  .btn-secondary:hover { background:#70d8ff; transform:translateY(-1px); }
+  #connect-status {
+    margin-top:24px; font-size:12px; color:var(--dim);
+    min-height:20px; letter-spacing:1px;
+  }
+
+  /* ── GAME LAYOUT ── */
+  #game-screen { display:none; flex-direction:column; height:100vh; }
+
+  /* TOP HUD */
+  #hud {
+    display:grid; grid-template-columns:1fr auto 1fr;
+    align-items:center; padding:8px 16px;
+    background: var(--panel);
+    border-bottom:1px solid var(--border);
+    gap:8px; flex-shrink:0;
+  }
+  .player-hud { display:flex; flex-direction:column; gap:4px; }
+  .player-hud.p2 { align-items:flex-end; }
+  .player-name {
+    font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700;
+    letter-spacing:2px;
+  }
+  .player-name.p1 { color:var(--p1col); }
+  .player-name.p2 { color:var(--p2col); }
+  .hp-bar-wrap { width:200px; height:12px; background:#1a1a2a; border-radius:2px; overflow:hidden; border:1px solid var(--border); }
+  .hp-bar { height:100%; transition:width .4s ease; border-radius:2px; }
+  .hp-bar.p1 { background:linear-gradient(90deg,#ff4500,#ff8c00); }
+  .hp-bar.p2 { background:linear-gradient(90deg,#007cf0,#3dc6ff); }
+  .hp-text { font-size:10px; color:var(--dim); }
+  .turn-indicator {
+    font-family:'Press Start 2P',monospace; font-size:9px;
+    color:var(--gold); text-align:center; line-height:1.6;
+  }
+  .power-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:#1e1e30; border:1px solid var(--border);
+    border-radius:4px; padding:3px 8px; font-size:10px;
+    max-width:220px;
+  }
+  .power-badge .emoji { font-size:16px; }
+  .shield-icon { color:var(--green); font-size:11px; }
+
+  /* CANVAS AREA */
+  #canvas-wrap {
+    flex:1; position:relative; overflow:hidden;
+    background: linear-gradient(180deg, #0d1b2a 0%, #1a2744 40%, #0a0a12 100%);
+  }
+  canvas { display:block; width:100%; height:100%; }
+
+  /* BOTTOM CONTROLS */
+  #controls {
+    background:var(--panel); border-top:1px solid var(--border);
+    padding:10px 16px; display:flex; align-items:center;
+    gap:16px; flex-wrap:wrap; flex-shrink:0;
+  }
+  .ctrl-group { display:flex; flex-direction:column; gap:3px; }
+  .ctrl-label { font-size:9px; color:var(--dim); letter-spacing:1px; text-transform:uppercase; }
+  .ctrl-val { font-family:'Orbitron',sans-serif; font-size:13px; font-weight:700; color:var(--text); }
+  input[type=range] {
+    -webkit-appearance:none; height:4px; border-radius:2px;
+    background:var(--border); outline:none; width:120px; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:14px; height:14px;
+    background:var(--accent2); border-radius:50%; cursor:pointer;
+  }
+  .ctrl-divider { width:1px; height:36px; background:var(--border); }
+  #fire-btn {
+    font-family:'Press Start 2P',monospace; font-size:10px;
+    background:var(--accent1); color:#fff; border:none;
+    padding:12px 24px; border-radius:4px; cursor:pointer;
+    letter-spacing:1px; transition:all .1s;
+    box-shadow:0 0 12px rgba(255,71,87,.4);
+    margin-left:auto;
+  }
+  #fire-btn:hover:not(:disabled) {
+    background:#ff6b7a; transform:scale(1.04);
+    box-shadow:0 0 20px rgba(255,71,87,.7);
+  }
+  #fire-btn:disabled { opacity:.35; cursor:not-allowed; transform:none; }
+  .move-btns { display:flex; gap:6px; }
+  .move-btn {
+    background:#1e1e30; border:1px solid var(--border); color:var(--text);
+    font-size:16px; padding:6px 14px; border-radius:4px; cursor:pointer;
+    transition:all .1s;
+  }
+  .move-btn:hover:not(:disabled) { background:#2a2a42; border-color:var(--accent2); }
+  .move-btn:disabled { opacity:.3; cursor:not-allowed; }
+
+  /* NOTIFICATION / FLOAT TEXT */
+  #notif {
+    position:absolute; top:60px; left:50%; transform:translateX(-50%);
+    font-family:'Press Start 2P',monospace; font-size:11px;
+    color:var(--gold); text-shadow:0 0 8px rgba(255,215,0,.5);
+    pointer-events:none; opacity:0; text-align:center;
+    white-space:nowrap; z-index:50;
+    transition:opacity .3s;
+  }
+
+  /* GAME OVER OVERLAY */
+  #gameover-overlay {
+    position:absolute; inset:0;
+    display:none; flex-direction:column;
+    align-items:center; justify-content:center;
+    background:rgba(0,0,0,.8);
+    backdrop-filter:blur(6px);
+    z-index:60;
+  }
+  .gameover-title {
+    font-family:'Press Start 2P',monospace;
+    font-size:clamp(20px,4vw,36px);
+    margin-bottom:16px;
+    animation:titlePulse 1.5s infinite;
+  }
+  .gameover-sub {
+    font-family:'Orbitron',sans-serif; font-size:13px;
+    color:var(--dim); margin-bottom:32px; letter-spacing:2px;
+  }
+
+  /* WAITING OVERLAY */
+  #waiting-overlay {
+    position:fixed; inset:0;
+    display:none; align-items:center; justify-content:center;
+    flex-direction:column; gap:16px;
+    background:rgba(0,0,0,.85); z-index:80;
+  }
+  .spinner {
+    width:48px; height:48px; border:3px solid var(--border);
+    border-top-color:var(--accent2); border-radius:50%;
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* Explosion canvas overlay */
+  #fx-canvas { position:absolute; inset:0; pointer-events:none; }
+
+  .power-info-row {
+    display:flex; gap:10px; align-items:center;
+    background:#161622; border:1px solid var(--border);
+    border-radius:4px; padding:6px 10px;
+    font-size:10px; color:var(--dim);
+  }
+  .power-info-row .name { color:var(--text); font-size:11px; }
+
+  /* Current power panel */
+  #my-power-panel {
+    position:absolute; bottom:4px; left:50%; transform:translateX(-50%);
+    background:rgba(10,10,20,.9); border:1px solid var(--border);
+    border-radius:6px; padding:6px 14px;
+    text-align:center; min-width:200px; pointer-events:none;
+    z-index:20;
+  }
+  #my-power-panel .pw-emoji { font-size:28px; }
+  #my-power-panel .pw-name {
+    font-family:'Orbitron',sans-serif; font-size:11px;
+    font-weight:700; color:var(--gold);
+  }
+  #my-power-panel .pw-desc { font-size:9px; color:var(--dim); }
+</style>
+</head>
+<body>
+
+<!-- ════════════════ TITLE SCREEN ════════════════ -->
+<div id="title-screen">
+  <div class="title-logo">⚔ TANK WARS ⚔</div>
+  <div class="title-sub">POCKET ARTILLERY MULTIPLAYER</div>
+  <div class="ws-input-row">
+    <input class="ws-input" id="ws-url" value="ws://localhost:8765/ws" placeholder="WebSocket URL" />
+    <button class="btn btn-primary" onclick="connectWS()">CONNECT &amp; PLAY</button>
+  </div>
+  <div id="connect-status">Enter server URL and connect to find a match</div>
+</div>
+
+<!-- ════════════════ WAITING ════════════════ -->
+<div id="waiting-overlay">
+  <div class="spinner"></div>
+  <div style="font-family:'Orbitron',sans-serif;font-size:13px;letter-spacing:2px;color:var(--dim)">WAITING FOR OPPONENT…</div>
+  <div id="room-id-display" style="font-size:10px;color:#444;margin-top:4px;"></div>
+</div>
+
+<!-- ════════════════ GAME SCREEN ════════════════ -->
+<div id="game-screen">
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="player-hud p1">
+      <div class="player-name p1">🟠 PLAYER 1</div>
+      <div class="hp-bar-wrap"><div class="hp-bar p1" id="hp1-bar" style="width:100%"></div></div>
+      <div class="hp-text"><span id="hp1-val">100</span> HP <span id="shield1" class="shield-icon" style="display:none">🛡️</span></div>
+      <div id="p1-power-badge" class="power-badge"><span class="emoji">?</span><span>—</span></div>
+    </div>
+
+    <div class="turn-indicator" id="turn-indicator">P1 TURN</div>
+
+    <div class="player-hud p2">
+      <div class="player-name p2" style="justify-content:flex-end">PLAYER 2 🔵</div>
+      <div class="hp-bar-wrap"><div class="hp-bar p2" id="hp2-bar" style="width:100%"></div></div>
+      <div class="hp-text" style="text-align:right"><span id="hp2-val">100</span> HP <span id="shield2" class="shield-icon" style="display:none">🛡️</span></div>
+      <div id="p2-power-badge" class="power-badge" style="flex-direction:row-reverse"><span class="emoji">?</span><span>—</span></div>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <canvas id="game-canvas"></canvas>
+    <canvas id="fx-canvas"></canvas>
+    <div id="notif"></div>
+    <div id="my-power-panel" style="display:none">
+      <div class="pw-emoji" id="pp-emoji">💣</div>
+      <div class="pw-name" id="pp-name">—</div>
+      <div class="pw-desc" id="pp-desc">—</div>
+    </div>
+    <!-- Game Over Overlay -->
+    <div id="gameover-overlay">
+      <div class="gameover-title" id="gameover-title">VICTORY!</div>
+      <div class="gameover-sub" id="gameover-sub">Player 1 Wins</div>
+      <button class="btn btn-secondary" onclick="requestRematch()">REMATCH</button>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div id="controls">
+    <div class="ctrl-group">
+      <div class="ctrl-label">Move</div>
+      <div class="move-btns">
+        <button class="move-btn" id="move-left-btn" onmousedown="startMove(-8)" onmouseup="stopMove()" ontouchstart="startMove(-8)" ontouchend="stopMove()">◀</button>
+        <button class="move-btn" id="move-right-btn" onmousedown="startMove(8)" onmouseup="stopMove()" ontouchstart="startMove(8)" ontouchend="stopMove()">▶</button>
+      </div>
+    </div>
+
+    <div class="ctrl-divider"></div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label">Angle</div>
+      <input type="range" id="angle-slider" min="5" max="175" value="45" oninput="updateAim()">
+      <div class="ctrl-val"><span id="angle-val">45</span>°</div>
+    </div>
+
+    <div class="ctrl-divider"></div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label">Power</div>
+      <input type="range" id="power-slider" min="10" max="100" value="55" oninput="updateAim()">
+      <div class="ctrl-val"><span id="power-val">55</span>%</div>
+    </div>
+
+    <div class="ctrl-divider"></div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label">My Weapon</div>
+      <div id="weapon-display" class="power-badge" style="max-width:180px">
+        <span class="emoji" id="ctrl-emoji">💣</span>
+        <span id="ctrl-wname">—</span>
+      </div>
+    </div>
+
+    <button id="fire-btn" onclick="fire()" disabled>🔥 FIRE!</button>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  GLOBALS
+// ══════════════════════════════════════════════
+let ws = null;
+let myRole = null;         // 'p1' or 'p2'
+let gameState = null;      // full state from server
+let terrain = [];          // array of heights
+let tankPos = {};          // {p1:{x,y}, p2:{x,y}}
+let hpMap = {};
+let currentTurn = 'p1';
+let myPower = null;
+let opPower = null;
+let shieldsMap = {};
+let particles = [];        // explosion particles
+let projectiles = [];      // in-flight projectiles
+let animFrame = null;
+let moveInterval = null;
+let lastAimAngle = 45;
+let lastAimPower = 55;
+let CANVAS_W = 900, CANVAS_H = 500, TERRAIN_SEGS = 180;
+let gameOver = false;
+
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const fxCanvas = document.getElementById('fx-canvas');
+const fxCtx = fxCanvas.getContext('2d');
+
+// ── Resize canvas ──
+function resizeCanvas() {
+  const wrap = document.getElementById('canvas-wrap');
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  fxCanvas.width = canvas.width;
+  fxCanvas.height = canvas.height;
+}
+window.addEventListener('resize', () => { resizeCanvas(); if(gameState) render(); });
+
+function scaleX(sx) { return sx * canvas.width / CANVAS_W; }
+function scaleY(sy) { return sy * canvas.height / CANVAS_H; }
+function unscaleX(cx) { return cx * CANVAS_W / canvas.width; }
+function unscaleY(cy) { return cy * CANVAS_H / canvas.height; }
+
+// ══════════════════════════════════════════════
+//  WEBSOCKET
+// ══════════════════════════════════════════════
+function connectWS() {
+  const url = document.getElementById('ws-url').value.trim();
+  setStatus('Connecting…');
+  ws = new WebSocket(url);
+
+  ws.onopen = () => setStatus('Connected! Finding match…');
+  ws.onerror = () => setStatus('❌ Connection failed. Check the URL.');
+  ws.onclose = () => {
+    setStatus('Disconnected.');
+    document.getElementById('waiting-overlay').style.display = 'none';
+  };
+
+  ws.onmessage = e => handleMessage(JSON.parse(e.data));
+}
+
+function setStatus(msg) {
+  document.getElementById('connect-status').textContent = msg;
+}
+
+function handleMessage(msg) {
+  switch(msg.type) {
+    case 'connected':
+      myRole = msg.role;
+      document.getElementById('title-screen').style.display = 'none';
+      if(msg.waiting) {
+        document.getElementById('waiting-overlay').style.display = 'flex';
+        document.getElementById('room-id-display').textContent = 'Room: ' + msg.room_id;
+      }
+      break;
+
+    case 'game_start':
+      document.getElementById('waiting-overlay').style.display = 'none';
+      document.getElementById('game-screen').style.display = 'flex';
+      document.getElementById('gameover-overlay').style.display = 'none';
+      gameOver = false;
+      CANVAS_W = msg.canvas_w; CANVAS_H = msg.canvas_h; TERRAIN_SEGS = msg.terrain_segments;
+      resizeCanvas();
+      terrain = msg.terrain;
+      tankPos = msg.tank_positions;
+      hpMap = msg.hp;
+      currentTurn = msg.current_turn;
+      shieldsMap = {p1:false, p2:false};
+      myPower = msg.powers[myRole];
+      opPower = msg.powers[myRole === 'p1' ? 'p2' : 'p1'];
+      particles = []; projectiles = [];
+      updateHUD();
+      updateControls();
+      startRenderLoop();
+      break;
+
+    case 'shot_result':
+      processShotResult(msg);
+      break;
+
+    case 'tank_moved':
+      tankPos[msg.role] = msg.position;
+      break;
+
+    case 'aim_update':
+      if(msg.role !== myRole) {
+        // show opponent aim indicator
+      }
+      break;
+
+    case 'opponent_disconnected':
+      showNotif('OPPONENT DISCONNECTED', '#ff4757');
+      break;
+  }
+}
+
+// ══════════════════════════════════════════════
+//  GAME LOGIC
+// ══════════════════════════════════════════════
+function isMyTurn() { return currentTurn === myRole && !gameOver; }
+
+function updateAim() {
+  lastAimAngle = parseInt(document.getElementById('angle-slider').value);
+  lastAimPower = parseInt(document.getElementById('power-slider').value);
+  document.getElementById('angle-val').textContent = lastAimAngle;
+  document.getElementById('power-val').textContent = lastAimPower;
+  if(ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({type:'aim', angle:lastAimAngle, power:lastAimPower}));
+  }
+}
+
+function startMove(dx) {
+  if(!isMyTurn()) return;
+  stopMove();
+  sendMove(dx);
+  moveInterval = setInterval(() => sendMove(dx), 80);
+}
+function stopMove() { clearInterval(moveInterval); moveInterval = null; }
+function sendMove(dx) {
+  if(!isMyTurn() || !ws) return;
+  ws.send(JSON.stringify({type:'move', dx}));
+}
+
+function fire() {
+  if(!isMyTurn() || !ws || !myPower) return;
+  // Simulate projectile client-side, get impact, then tell server
+  simulateAndFire();
+}
+
+function simulateAndFire() {
+  const pos = tankPos[myRole];
+  const angleRad = (myRole === 'p1')
+    ? (lastAimAngle * Math.PI / 180)          // p1 fires right-ish
+    : (Math.PI - lastAimAngle * Math.PI / 180); // p2 fires left-ish
+
+  const speed = lastAimPower * 0.12;
+  let vx = Math.cos(angleRad) * speed;
+  let vy = -Math.sin(angleRad) * speed;
+  let px = pos.x, py = pos.y - 10;
+
+  // Physics sim
+  const gravity = 0.18;
+  const dt = 1;
+  let steps = 0;
+  let impactX = px, impactY = py;
+
+  while(steps < 3000) {
+    px += vx * dt;
+    py += vy * dt;
+    vy += gravity * dt;
+    steps++;
+    if(px < 0 || px > CANVAS_W) break;
+    if(py > CANVAS_H + 20) break;
+    const th = getTerrainHeight(px);
+    if(py >= th) {
+      impactX = px;
+      impactY = th;
+      break;
+    }
+    if(py < 0) py = 0;
+  }
+
+  // Launch visual projectile
+  launchProjectile(pos.x, pos.y - 10, vx, vy, myPower, impactX, impactY, () => {
+    if(ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({
+        type: 'fire',
+        impact_x: impactX,
+        impact_y: impactY,
+      }));
+    }
+  });
+
+  document.getElementById('fire-btn').disabled = true;
+}
+
+function processShotResult(msg) {
+  terrain = msg.terrain;
+  tankPos = msg.tank_positions;
+  hpMap = msg.hp;
+  currentTurn = msg.next_turn;
+  if(msg.shields) shieldsMap = msg.shields;
+
+  // Update powers
+  if(msg.powers) {
+    myPower = msg.powers[myRole];
+    opPower = msg.powers[myRole === 'p1' ? 'p2' : 'p1'];
+  }
+
+  // Visual effects
+  spawnExplosion(msg.impact_x, msg.impact_y, msg.power);
+
+  // Effects
+  (msg.effects || []).forEach(eff => {
+    if(eff.type === 'earthquake') screenShake(20);
+    if(eff.type === 'shield_absorb') showNotif('🛡️ SHIELD ABSORBED HIT!', '#4caf50');
+    if(eff.type === 'frozen') showNotif('❄️ PLAYER FROZEN!', '#80deea');
+    if(eff.type === 'shield' && eff.player === myRole) showNotif('🛡️ SHIELD ACTIVATED!', '#4caf50');
+    if(eff.type === 'teleport') showNotif('🌟 TELEPORTED!', '#b39ddb');
+  });
+
+  if(msg.winner) {
+    gameOver = true;
+    const isWinner = msg.winner === myRole;
+    document.getElementById('gameover-title').textContent = isWinner ? '🏆 VICTORY!' : '💀 DEFEAT';
+    document.getElementById('gameover-title').style.color = isWinner ? 'var(--gold)' : 'var(--accent1)';
+    document.getElementById('gameover-sub').textContent = `Player ${msg.winner === 'p1' ? 1 : 2} Wins!`;
+    document.getElementById('gameover-overlay').style.display = 'flex';
+  }
+
+  updateHUD();
+  updateControls();
+}
+
+function requestRematch() {
+  if(ws && ws.readyState === 1) ws.send(JSON.stringify({type:'rematch'}));
+}
+
+// ══════════════════════════════════════════════
+//  TERRAIN HELPERS
+// ══════════════════════════════════════════════
+function getTerrainHeight(x) {
+  if(terrain.length === 0) return CANVAS_H;
+  const segW = CANVAS_W / (TERRAIN_SEGS - 1);
+  const idx = x / segW;
+  const i0 = Math.max(0, Math.min(TERRAIN_SEGS - 2, Math.floor(idx)));
+  const i1 = Math.min(i0 + 1, TERRAIN_SEGS - 1);
+  const frac = idx - i0;
+  return terrain[i0] * (1 - frac) + terrain[i1] * frac;
+}
+
+// ══════════════════════════════════════════════
+//  PROJECTILE SIMULATION
+// ══════════════════════════════════════════════
+function launchProjectile(startX, startY, vx, vy, power, impX, impY, onLand) {
+  const trail = [];
+  const proj = {
+    x: startX, y: startY,
+    vx, vy,
+    power,
+    trail,
+    done: false,
+    targetImpX: impX, targetImpY: impY,
+    onLand,
+    gravity: 0.18,
+    t: 0,
+  };
+  projectiles.push(proj);
+}
+
+function updateProjectiles() {
+  for(let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    if(p.done) { projectiles.splice(i, 1); continue; }
+    p.trail.push({x: p.x, y: p.y});
+    if(p.trail.length > 24) p.trail.shift();
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += p.gravity;
+    p.t++;
+
+    const th = getTerrainHeight(p.x);
+    if(p.y >= th || p.x < 0 || p.x > CANVAS_W || p.y > CANVAS_H + 30 || p.t > 3000) {
+      p.done = true;
+      if(p.onLand) { p.onLand(); p.onLand = null; }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════
+//  PARTICLES / EXPLOSIONS
+// ══════════════════════════════════════════════
+function spawnExplosion(sx, sy, power) {
+  const cx = scaleX(sx), cy = scaleY(sy);
+  const n = 60;
+  const col = power ? power.color : '#ff8800';
+  for(let i = 0; i < n; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 5 + 1;
+    particles.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - Math.random() * 3,
+      life: 1, decay: 0.02 + Math.random() * 0.03,
+      size: Math.random() * 5 + 2,
+      col,
+    });
+  }
+  // Shockwave ring
+  particles.push({shockwave: true, x: cx, y: cy, r: 0, maxR: scaleX(power ? power.blast_radius || 40 : 40), life: 1, col});
+}
+
+function updateParticles() {
+  for(let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    if(p.shockwave) {
+      p.r += (p.maxR / 15);
+      p.life -= 0.07;
+      if(p.life <= 0) particles.splice(i, 1);
+      continue;
+    }
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.15;
+    p.life -= p.decay;
+    if(p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ── Screen shake ──
+let shakeAmount = 0;
+function screenShake(amount) { shakeAmount = amount; }
+
+// ══════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════
+function startRenderLoop() {
+  if(animFrame) cancelAnimationFrame(animFrame);
+  loop();
+}
+function loop() {
+  animFrame = requestAnimationFrame(loop);
+  updateProjectiles();
+  updateParticles();
+  render();
+}
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+
+  // Shake offset
+  let ox = 0, oy = 0;
+  if(shakeAmount > 0) {
+    ox = (Math.random() - 0.5) * shakeAmount * 2;
+    oy = (Math.random() - 0.5) * shakeAmount * 2;
+    shakeAmount *= 0.85;
+    if(shakeAmount < 0.5) shakeAmount = 0;
+  }
+
+  ctx.save();
+  ctx.translate(ox, oy);
+
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#07111f');
+  sky.addColorStop(0.5, '#0e1f3a');
+  sky.addColorStop(1, '#1a1a2e');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  for(let s = 0; s < 80; s++) {
+    const sx = ((s * 137.5) % 1) * W;
+    const sy = ((s * 91.3) % 0.55) * H;
+    ctx.fillRect(sx, sy, 1, 1);
+  }
+
+  // Terrain
+  drawTerrain(ctx, W, H);
+
+  // Tanks
+  drawTank(ctx, tankPos['p1'], '#ff6b35', myRole === 'p1', lastAimAngle, 1);
+  drawTank(ctx, tankPos['p2'], '#3dc6ff', myRole === 'p2', lastAimAngle, -1);
+
+  // Aim line
+  if(isMyTurn() && projectiles.length === 0) {
+    drawAimLine(ctx);
+  }
+
+  // Projectiles
+  for(const p of projectiles) {
+    drawProjectile(ctx, p);
+  }
+
+  ctx.restore();
+
+  // FX canvas (particles)
+  fxCtx.clearRect(0, 0, W, H);
+  for(const p of particles) {
+    if(p.shockwave) {
+      fxCtx.beginPath();
+      fxCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      fxCtx.strokeStyle = p.col + Math.floor(p.life * 255).toString(16).padStart(2,'0');
+      fxCtx.lineWidth = 2;
+      fxCtx.stroke();
+    } else {
+      fxCtx.globalAlpha = p.life;
+      fxCtx.fillStyle = p.col;
+      fxCtx.beginPath();
+      fxCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      fxCtx.fill();
+    }
+  }
+  fxCtx.globalAlpha = 1;
+}
+
+function drawTerrain(ctx, W, H) {
+  if(!terrain.length) return;
+  const segW = W / (TERRAIN_SEGS - 1);
+  const scY = H / CANVAS_H;
+
+  // Rock gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#4a5568');
+  grad.addColorStop(0.3, '#2d3748');
+  grad.addColorStop(1, '#1a202c');
+
+  ctx.beginPath();
+  ctx.moveTo(0, terrain[0] * scY);
+  for(let i = 1; i < terrain.length; i++) {
+    ctx.lineTo(i * segW, terrain[i] * scY);
+  }
+  ctx.lineTo(W, H);
+  ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Top edge highlight
+  ctx.beginPath();
+  ctx.moveTo(0, terrain[0] * scY);
+  for(let i = 1; i < terrain.length; i++) {
+    ctx.lineTo(i * segW, terrain[i] * scY);
+  }
+  ctx.strokeStyle = '#8899bb';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function drawTank(ctx, pos, color, isMe, angle, side) {
+  if(!pos) return;
+  const tx = scaleX(pos.x), ty = scaleY(pos.y);
+  ctx.save();
+  ctx.translate(tx, ty);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.ellipse(0, 6, 20, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.roundRect(-16, -10, 32, 14, 4);
+  ctx.fill();
+
+  // Tracks
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(-18, 0, 36, 6);
+  ctx.fillStyle = color;
+  for(let i = -17; i < 18; i += 6) {
+    ctx.fillRect(i, 0, 4, 6);
+  }
+
+  // Turret
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(0, -10, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Barrel (rotated by angle if it's the active player's turn)
+  if(isMe && isMyTurn()) {
+    const rad = side === 1
+      ? (angle * Math.PI / 180)
+      : (Math.PI - angle * Math.PI / 180);
+    ctx.save();
+    ctx.rotate(-rad + (side === 1 ? 0 : Math.PI));
+    ctx.fillStyle = '#ccc';
+    ctx.fillRect(0, -3, 22, 6);
+    ctx.restore();
+  } else {
+    // Static barrel pointing outward
+    ctx.fillStyle = '#aaa';
+    if(side === 1) ctx.fillRect(4, -14, 16, 5);
+    else ctx.fillRect(-20, -14, 16, 5);
+  }
+
+  // Name tag
+  ctx.fillStyle = isMe ? '#fff' : 'rgba(255,255,255,0.5)';
+  ctx.font = '8px Share Tech Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText(isMe ? 'YOU' : 'OPP', 0, -20);
+
+  ctx.restore();
+}
+
+function drawAimLine(ctx) {
+  const role = myRole;
+  const pos = tankPos[role];
+  if(!pos) return;
+
+  const side = role === 'p1' ? 1 : -1;
+  const angleRad = side === 1
+    ? (lastAimAngle * Math.PI / 180)
+    : (Math.PI - lastAimAngle * Math.PI / 180);
+
+  const speed = lastAimPower * 0.12;
+  let vx = Math.cos(angleRad) * speed;
+  let vy = -Math.sin(angleRad) * speed;
+  let px = pos.x, py = pos.y - 10;
+  const gravity = 0.18;
+
+  ctx.save();
+  ctx.setLineDash([4,6]);
+  ctx.strokeStyle = 'rgba(255,255,180,0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(scaleX(px), scaleY(py));
+
+  for(let i = 0; i < 120; i++) {
+    px += vx; py += vy; vy += gravity;
+    if(px < 0 || px > CANVAS_W || py > CANVAS_H) break;
+    const th = getTerrainHeight(px);
+    if(py >= th) break;
+    if(i % 4 === 0) ctx.lineTo(scaleX(px), scaleY(py));
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawProjectile(ctx, p) {
+  // Trail
+  ctx.save();
+  for(let i = 0; i < p.trail.length; i++) {
+    const t = p.trail[i];
+    const alpha = (i / p.trail.length) * 0.6;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.power ? p.power.color : '#ff8800';
+    ctx.beginPath();
+    ctx.arc(scaleX(t.x), scaleY(t.y), 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Shell
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = p.power ? p.power.color : '#ffcc00';
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = p.power ? p.power.color : '#ff8800';
+  ctx.beginPath();
+  ctx.arc(scaleX(p.x), scaleY(p.y), 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════════
+//  HUD UPDATES
+// ══════════════════════════════════════════════
+function updateHUD() {
+  // HP bars
+  document.getElementById('hp1-bar').style.width = hpMap.p1 + '%';
+  document.getElementById('hp2-bar').style.width = hpMap.p2 + '%';
+  document.getElementById('hp1-val').textContent = hpMap.p1;
+  document.getElementById('hp2-val').textContent = hpMap.p2;
+
+  // Shields
+  document.getElementById('shield1').style.display = shieldsMap.p1 ? 'inline' : 'none';
+  document.getElementById('shield2').style.display = shieldsMap.p2 ? 'inline' : 'none';
+
+  // Turn indicator
+  const isP1Turn = currentTurn === 'p1';
+  document.getElementById('turn-indicator').innerHTML =
+    isP1Turn ? '🟠 P1 TURN' : '🔵 P2 TURN';
+
+  // Power badges
+  const p1p = isP1Turn ? myPower : opPower; // p1 power shown for p1
+  // Actually always show both as seen from server
+  updatePowerBadge('p1-power-badge', myRole === 'p1' ? myPower : opPower);
+  updatePowerBadge('p2-power-badge', myRole === 'p2' ? myPower : opPower);
+
+  // My power panel
+  const mp = myPower;
+  if(mp) {
+    document.getElementById('my-power-panel').style.display = 'block';
+    document.getElementById('pp-emoji').textContent = mp.emoji;
+    document.getElementById('pp-name').textContent = mp.name;
+    document.getElementById('pp-desc').textContent = mp.description;
+    document.getElementById('ctrl-emoji').textContent = mp.emoji;
+    document.getElementById('ctrl-wname').textContent = mp.name;
+  }
+}
+
+function updatePowerBadge(id, power) {
+  const el = document.getElementById(id);
+  if(!el || !power) return;
+  el.innerHTML = `<span class="emoji">${power.emoji}</span><span style="font-size:10px">${power.name}</span>`;
+  el.style.borderColor = power.color || 'var(--border)';
+}
+
+function updateControls() {
+  const myTurn = isMyTurn();
+  document.getElementById('fire-btn').disabled = !myTurn || projectiles.length > 0;
+  document.getElementById('move-left-btn').disabled = !myTurn;
+  document.getElementById('move-right-btn').disabled = !myTurn;
+  document.getElementById('angle-slider').disabled = !myTurn;
+  document.getElementById('power-slider').disabled = !myTurn;
+}
+
+// ══════════════════════════════════════════════
+//  NOTIFICATION
+// ══════════════════════════════════════════════
+let notifTimeout = null;
+function showNotif(msg, color='var(--gold)') {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.style.color = color;
+  el.style.opacity = '1';
+  if(notifTimeout) clearTimeout(notifTimeout);
+  notifTimeout = setTimeout(() => { el.style.opacity = '0'; }, 2200);
+}
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+resizeCanvas();
+</script>
+</body>
+</html>

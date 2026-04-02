@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tankify</title>
+    <link rel="stylesheet" href="static/css/index.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Move Canvas into View-Game -->
+
+        <!-- View: Login -->
+        <div id="view-login" class="view active">
+            <div class="glass-card">
+                <h1 class="glow-text">TANKIFY</h1>
+                <p>Enter your callsign to commence.</p>
+                <input type="text" id="player-name-input" placeholder="e.g. Maverick" autocomplete="off" maxlength="15">
+                <button id="connect-btn" class="neu-btn primary">INITIALIZE</button>
+                <div id="login-status"></div>
+            </div>
+        </div>
+
+        <!-- View: Draft Phase -->
+        <div id="view-draft" class="view">
+            <div class="draft-header glass-panel">
+                <div class="draft-player" id="draft-p1-panel">
+                    <span id="draft-p1-name">P1</span>
+                    <div class="draft-count" id="draft-p1-count">0/10</div>
+                </div>
+                <div id="draft-status-msg" class="glow-text text-center">WAITING...</div>
+                <div class="draft-player right" id="draft-p2-panel">
+                    <span id="draft-p2-name">P2</span>
+                    <div class="draft-count" id="draft-p2-count">0/10</div>
+                </div>
+            </div>
+
+            <div class="draft-grid-container glass-panel">
+                <h3>POWER POOL</h3>
+                <div id="weapon-pool" class="weapon-grid">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+            
+            <div class="draft-inventories">
+                <div class="inv-container" id="p1-inv-container">
+                    <div class="inv-label" id="draft-p1-inv-label" style="color: var(--primary);">P1 POWERS</div>
+                    <div class="inventory glass-panel p1-border" id="draft-p1-inv"></div>
+                </div>
+                <div class="inv-container" id="p2-inv-container">
+                    <div class="inv-label right" id="draft-p2-inv-label" style="color: var(--secondary);">P2 POWERS</div>
+                    <div class="inventory glass-panel p2-border" id="draft-p2-inv"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Game Phase -->
+        <div id="view-game" class="view">
+            <!-- Top Dashboard: Health + Score -->
+            <div class="top-dash glass-panel">
+                <div class="player-hud p1-hud">
+                    <div class="hud-name" id="game-p1-name">P1</div>
+                    <div class="hud-score" id="game-p1-score" style="color: var(--primary);">Score: 0</div>
+                    <div class="health-track">
+                        <div class="health-fill p1-fill" id="p1-health" style="width: 100%;"></div>
+                    </div>
+                </div>
+                <div id="game-status-banner">YOUR TURN</div>
+                <div class="player-hud p2-hud">
+                    <div class="hud-name" id="game-p2-name" style="text-align: right;">P2</div>
+                    <div class="hud-score" id="game-p2-score" style="color: var(--secondary); text-align: right;">Score: 0</div>
+                    <div class="health-track right">
+                        <div class="health-fill p2-fill" id="p2-health" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Canvas Container -->
+            <div id="canvas-container">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+
+            <!-- Bottom Dashboard: Controls -->
+            <div class="bottom-dash">
+                <!-- Weapon Carousel Wrapper -->
+                <div class="weapon-carousel glass-panel" id="game-weapon-carousel">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Sliders & Action -->
+                <div class="controls-panel glass-panel">
+                    <div class="slider-group">
+                        <div class="slider-info">
+                            <span>ANGLE</span>
+                            <span id="angle-value" class="value-text">45&deg;</span>
+                        </div>
+                        <input type="range" class="neu-slider" id="angle-slider" min="0" max="180" value="45">
+                    </div>
+                    
+                    <div class="slider-group">
+                        <div class="slider-info">
+                            <span>POWER</span>
+                            <span id="power-value" class="value-text">50</span>
+                        </div>
+                        <input type="range" class="neu-slider" id="power-slider" min="10" max="100" value="50">
+                    </div>
+
+                    <div class="action-row">
+                        <button id="move-left-btn" class="neu-btn primary move-btn" disabled><span class="mbtn-icon">&lt;</span><span class="mbtn-txt" id="move-left-txt">(3)</span></button>
+                        <button id="fire-btn" class="neu-btn danger" disabled>FIRE</button>
+                        <button id="move-right-btn" class="neu-btn primary move-btn" disabled><span class="mbtn-icon">&gt;</span><span class="mbtn-txt" id="move-right-txt">(3)</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Overlay -->
+        <div id="game-over-screen" style="display:none;">
+            <div class="glass-card text-center">
+                <h1 class="glow-text" id="go-winner" style="font-size: 2.8rem;">WINNER!</h1>
+                <p id="go-scores" style="margin:10px 0; font-size:0.9rem; color: var(--text-muted);"></p>
+                <div style="display:flex; gap:12px; margin-top:20px; justify-content:center;">
+                    <button id="restart-btn" class="neu-btn primary">PLAY AGAIN</button>
+                    <button id="exit-btn" class="neu-btn danger" onclick="location.reload()">EXIT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="static/js/audio.js"></script>
+    <script src="static/js/weapons.js"></script>
+    <script src="static/js/physics.js"></script>
+    <script src="static/js/renderer.js"></script>
+    <script src="static/js/game.js"></script>
+</body>
+</html>
