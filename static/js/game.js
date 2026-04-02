@@ -32,6 +32,7 @@ const angleValue = document.getElementById('angle-value');
 const powerSlider = document.getElementById('power-slider');
 const powerValue = document.getElementById('power-value');
 const gameWeaponCarousel = document.getElementById('game-weapon-carousel');
+const fullscreenBtn = document.getElementById('fullscreen-btn');
 
 function showView(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -58,6 +59,25 @@ const restartBtn = document.getElementById('restart-btn');
         connectWebSocket(nameInput.value);
         connectBtn.disabled = true;
         loginStatus.innerText = "CONNECTING...";
+    });
+
+    // Fullscreen Toggle
+    fullscreenBtn.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+        if (document.fullscreenElement) {
+            fullscreenBtn.innerText = "EXIT FULLSCREEN";
+        } else {
+            fullscreenBtn.innerText = "ENTER FULLSCREEN";
+        }
     });
 
     // Game Over Restart
